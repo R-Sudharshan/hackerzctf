@@ -1,7 +1,16 @@
 from flask import Flask, render_template, send_from_directory, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from prisma import Prisma
+try:
+    from prisma import Prisma
+except (ImportError, RuntimeError):
+    # This block will run on Vercel if the build-time generation failed
+    import subprocess
+    import sys
+    print("DEBUG: Prisma client not found, generating at runtime...")
+    subprocess.run([sys.executable, "-m", "prisma", "generate"])
+    from prisma import Prisma
+
 import os
 import asyncio
 
