@@ -9,8 +9,8 @@ import traceback
 # Ensure the app root is in sys.path for importing generated_prisma
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-# Prisma binary configuration for Render
-os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), 'prisma_binaries')
+# Prisma binary configuration for Render (must match build command)
+os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), '.prisma_engines')
 
 from generated_prisma import Prisma
 from asgiref.sync import async_to_sync
