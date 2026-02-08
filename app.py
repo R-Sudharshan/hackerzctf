@@ -1,9 +1,14 @@
 from flask import Flask, render_template, send_from_directory, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from prisma_client import Prisma
 import os
+import sys
 import asyncio
+
+# Ensure local path is in sys.path for Vercel environment
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from prisma import Prisma
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
