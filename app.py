@@ -12,6 +12,7 @@ os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), '.prisma_en
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from generated_prisma import Prisma
+from asgiref.sync import async_to_sync
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
@@ -29,53 +30,56 @@ class User(UserMixin):
         self.team = team_obj
         self.name = team_obj.name
 
-from asgiref.sync import async_to_sync
-
 @login_manager.user_loader
 def load_user(user_id):
-    if not prisma.is_connected():
-        async_to_sync(prisma.connect)()
-        
-    team = async_to_sync(prisma.team.find_unique)(where={'id': int(user_id)})
-    return User(team) if team else None
+    try:
+        if not prisma.is_connected():
+            async_to_sync(prisma.connect)()
+        team = async_to_sync(prisma.team.find_unique)(where={'id': int(user_id)})
+        return User(team) if team else None
+    except Exception as e:
+        print(f"ERROR in load_user: {e}")
+        return None
 
 # Initialize Database
 async def init_db():
     if not prisma.is_connected():
         await prisma.connect()
         
-    if not await prisma.challenge.find_first():
-        print("DEBUG: Seeding database with challenges...")
-        challenges = [
-            {"title": "The Source", "category": "Reverse Engineering", "difficulty": "Easy", "points": 100, 
-             "description": "Can you reverse this script and find the flag? It seems to be hidden in the logic.",
-             "file_url": "rev_challenge.py", "flag": "flag{Typo_and_Sympo}"},
-            {"title": "Binary Whisperer", "category": "OSINT", "difficulty": "Medium", "points": 250, 
-             "description": 'The challenge begins long before you think it does: <a href="https://chat.whatsapp.com/Hb02gXqFZtF2K8EOInsOQ2" target="_blank" style="color: var(--primary-color); text-decoration: underline;">click me</a>', "file_url": None, "flag": "Flag{OSINT_Made_Easy}"},
-            {"title": "Client Side Truth", "category": "Web Exploitation", "difficulty": "Medium", "points": 300, 
-             "description": 'Can you find the truth hidden on the client side? Explore the portal here: <a href="https://ques-mu.vercel.app/" target="_blank" style="color: var(--primary-color); text-decoration: underline;">click here</a>', "file_url": None, "flag": "flag{cl13nt_s1d3_truth}"},
-            {"title": "Hidden in Plain Sight", "category": "Steganography", "difficulty": "Hard", "points": 500, 
-             "description": "Some information prefers curiosity over attention. Find what’s quietly waiting to be discovered.", "file_url": "stego_challenge.jpg", "flag": "flag{Simply_Scan_Me}"}
-        ]
-        for c in challenges:
-            await prisma.challenge.create(data=c)
-        
-        if not await prisma.team.find_unique(where={"name": "AdminTeam"}):
-             password_hash = generate_password_hash("admin123")
-             await prisma.team.create(data={
-                 "name": "AdminTeam",
-                 "email": "admin@hackerz.com",
-                 "score": 100,
-                 "password_hash": password_hash
-             })
-        print("DEBUG: Database seeded successfully.")
+    try:
+        if not await prisma.challenge.find_first():
+            print("DEBUG: Seeding database with challenges...")
+            challenges = [
+                {"title": "The Source", "category": "Reverse Engineering", "difficulty": "Easy", "points": 100, 
+                 "description": "Can you reverse this script and find the flag? It seems to be hidden in the logic.",
+                 "file_url": "rev_challenge.py", "flag": "flag{Typo_and_Sympo}"},
+                {"title": "Binary Whisperer", "category": "OSINT", "difficulty": "Medium", "points": 250, 
+                 "description": 'The challenge begins long before you think it does: <a href="https://chat.whatsapp.com/Hb02gXqFZtF2K8EOInsOQ2" target="_blank" style="color: var(--primary-color); text-decoration: underline;">click me</a>', "file_url": None, "flag": "Flag{OSINT_Made_Easy}"},
+                {"title": "Client Side Truth", "category": "Web Exploitation", "difficulty": "Medium", "points": 300, 
+                 "description": 'Can you find the truth hidden on the client side? Explore the portal here: <a href="https://ques-mu.vercel.app/" target="_blank" style="color: var(--primary-color); text-decoration: underline;">click here</a>', "file_url": None, "flag": "flag{cl13nt_s1d3_truth}"},
+                {"title": "Hidden in Plain Sight", "category": "Steganography", "difficulty": "Hard", "points": 500, 
+                 "description": "Some information prefers curiosity over attention. Find what’s quietly waiting to be discovered.", "file_url": "stego_challenge.jpg", "flag": "flag{Simply_Scan_Me}"}
+            ]
+            for c in challenges:
+                await prisma.challenge.create(data=c)
+            
+            if not await prisma.team.find_unique(where={"name": "AdminTeam"}):
+                 password_hash = generate_password_hash("admin123")
+                 await prisma.team.create(data={
+                     "name": "AdminTeam",
+                     "email": "admin@hackerz.com",
+                     "score": 100,
+                     "password_hash": password_hash
+                 })
+            print("DEBUG: Database seeded successfully.")
+    except Exception as e:
+        print(f"DEBUG: Seeding skipped or failed (might already exist): {e}")
 
-# Middleware to ensure Prisma is connected for every request
+# Middleware to ensure Prisma is connected
 @app.before_request
 async def ensure_prisma_connected():
     if not prisma.is_connected():
         await prisma.connect()
-        await init_db()
 
 @app.route('/')
 def index():
@@ -87,8 +91,13 @@ async def login():
         return redirect(url_for('ctf'))
     
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not email or not password:
+            flash('Missing email or password')
+            return redirect(url_for('login'))
+            
         team = await prisma.team.find_unique(where={'email': email})
         
         if team and check_password_hash(team.password_hash, password):
@@ -105,9 +114,13 @@ async def register():
         return redirect(url_for('ctf'))
 
     if request.method == 'POST':
-        team_name = request.form['team_name']
-        email = request.form['email']
-        password = request.form['password']
+        team_name = request.form.get('team_name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not all([team_name, email, password]):
+            flash('All fields are required')
+            return redirect(url_for('register'))
         
         if await prisma.team.find_unique(where={'email': email}):
             flash('Email already registered')
@@ -118,14 +131,18 @@ async def register():
             return redirect(url_for('register'))
             
         password_hash = generate_password_hash(password)
-        new_team = await prisma.team.create(data={
-            "name": team_name,
-            "email": email,
-            "password_hash": password_hash
-        })
-        
-        login_user(User(new_team))
-        return redirect(url_for('ctf'))
+        try:
+            new_team = await prisma.team.create(data={
+                "name": team_name,
+                "email": email,
+                "password_hash": password_hash
+            })
+            login_user(User(new_team))
+            return redirect(url_for('ctf'))
+        except Exception as e:
+            print(f"ERROR creating team: {e}")
+            flash('System error during registration. Please try again.')
+            return redirect(url_for('register'))
         
     return render_template('register.html')
 
@@ -138,8 +155,8 @@ def logout():
 @app.route('/ctf')
 @login_required
 async def ctf():
+    await init_db() # Ensure DB is seeded if first run
     challenges = await prisma.challenge.find_many()
-    # Get solved challenge IDs for current user
     solves = await prisma.solve.find_many(where={'team_id': int(current_user.id)})
     solved_ids = [s.challenge_id for s in solves]
     return render_template('ctf.html', challenges=challenges, solved_ids=solved_ids)
@@ -154,8 +171,6 @@ async def leaderboard():
 @login_required
 async def solve_challenge():
     data = request.json
-    print(f"DEBUG: Received solve request from {current_user.name}: {data}")
-    
     flag_input = data.get('flag')
     challenge_id = data.get('challenge_id')
 
@@ -167,7 +182,6 @@ async def solve_challenge():
         return jsonify({'success': False, 'message': 'Challenge not found'})
 
     if flag_input.strip() == challenge.flag:
-        # Check if already solved
         solved = await prisma.solve.find_unique(where={
             'team_id_challenge_id': {
                 'team_id': int(current_user.id),
@@ -178,23 +192,24 @@ async def solve_challenge():
         if solved:
             return jsonify({'success': False, 'message': 'Already solved!', 'score': current_user.team.score})
         
-        # Add Score and Solve record in a transaction if possible, or sequential
-        async with prisma.tx() as transaction:
-            await transaction.team.update(
-                where={'id': int(current_user.id)},
-                data={'score': {'increment': challenge.points}}
-            )
-            await transaction.solve.create(data={
-                'team_id': int(current_user.id),
-                'challenge_id': challenge.id
-            })
-        
-        # Refresh current user score (in-memory or re-fetch)
-        updated_team = await prisma.team.find_unique(where={'id': int(current_user.id)})
-        current_user.team = updated_team
-        
-        print(f"DEBUG: Score updated for {current_user.name}. New Score: {updated_team.score}")
-        return jsonify({'success': True, 'message': 'Correct! Flag Accepted.', 'score': updated_team.score})
+        try:
+            async with prisma.tx() as transaction:
+                await transaction.team.update(
+                    where={'id': int(current_user.id)},
+                    data={'score': {'increment': challenge.points}}
+                )
+                await transaction.solve.create(data={
+                    'team_id': int(current_user.id),
+                    'challenge_id': challenge.id
+                })
+            
+            # Refresh current user
+            updated_team = await prisma.team.find_unique(where={'id': int(current_user.id)})
+            current_user.team = updated_team
+            return jsonify({'success': True, 'message': 'Correct! Flag Accepted.', 'score': updated_team.score})
+        except Exception as e:
+            print(f"ERROR in solve transaction: {e}")
+            return jsonify({'success': False, 'message': 'System error. Try again.'})
     
     return jsonify({'success': False, 'message': 'Incorrect Flag.'})
 
