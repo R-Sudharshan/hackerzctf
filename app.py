@@ -29,18 +29,14 @@ class User(UserMixin):
         self.team = team_obj
         self.name = team_obj.name
 
+from asgiref.sync import async_to_sync
+
 @login_manager.user_loader
 def load_user(user_id):
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
     if not prisma.is_connected():
-        loop.run_until_complete(prisma.connect())
+        async_to_sync(prisma.connect)()
         
-    team = loop.run_until_complete(prisma.team.find_unique(where={'id': int(user_id)}))
+    team = async_to_sync(prisma.team.find_unique)(where={'id': int(user_id)})
     return User(team) if team else None
 
 # Initialize Database
