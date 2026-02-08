@@ -5,8 +5,8 @@ import os
 import sys
 import asyncio
 
-# CRITICAL for Vercel: Redirect Prisma binaries to /tmp (the only writeable place)
-os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = '/tmp/prisma_binaries'
+# CRITICAL for Vercel: Redirect Prisma binaries to a local folder for bundling
+os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), '.prisma_engines')
 
 # Ensure local path is in sys.path for Vercel environment
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -31,15 +31,23 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    # Flask-Login's user_loader needs to be sync, so we use a helper
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    if not prisma.is_connected():
+        loop.run_until_complete(prisma.connect())
+        
     team = loop.run_until_complete(prisma.team.find_unique(where={'id': int(user_id)}))
-    loop.close()
     return User(team) if team else None
 
 # Initialize Database
 async def init_db():
+    if not prisma.is_connected():
+        await prisma.connect()
+        
     if not await prisma.challenge.find_first():
         print("DEBUG: Seeding database with challenges...")
         challenges = [
@@ -56,7 +64,6 @@ async def init_db():
         for c in challenges:
             await prisma.challenge.create(data=c)
         
-        # Seed a default team
         if not await prisma.team.find_unique(where={"name": "AdminTeam"}):
              password_hash = generate_password_hash("admin123")
              await prisma.team.create(data={
@@ -65,18 +72,14 @@ async def init_db():
                  "score": 100,
                  "password_hash": password_hash
              })
-        
         print("DEBUG: Database seeded successfully.")
 
-# Setup Prisma connection before first request
+# Middleware to ensure Prisma is connected for every request
 @app.before_request
-def startup():
+async def ensure_prisma_connected():
     if not prisma.is_connected():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(prisma.connect())
-        loop.run_until_complete(init_db())
-        loop.close()
+        await prisma.connect()
+        await init_db()
 
 @app.route('/')
 def index():
