@@ -9,7 +9,13 @@ app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
 
 # Database Configuration
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'hackerz.db'))
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'hackerz.db'))
+
+# Fix for SQLAlchemy 1.4+ / 2.0+ which requires 'postgresql://' instead of 'postgres://'
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static', 'downloads')
 
@@ -23,7 +29,7 @@ class Team(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(255)) # Increased from 128 to 255
     score = db.Column(db.Integer, default=0)
 
     def set_password(self, password):
