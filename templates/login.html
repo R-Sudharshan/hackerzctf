@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hackerz - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <header>
+        <div class="glitch" data-text="HACKERZ">HACKERZ</div>
+        <nav>
+            <a href="/">HOME</a>
+            <a href="/register">REGISTER</a>
+        </nav>
+    </header>
+
+    <main style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+        <div class="challenge-card" style="width: 400px; text-align: center;">
+            <h3>SYSTEM LOGIN</h3>
+            <p>Authenticate to access the mainframe.</p>
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <ul class="flashes" style="color: #ff3e3e; list-style: none; padding: 0;">
+                {% for message in messages %}
+                <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% endwith %}
+            <form action="/login" method="POST"
+                style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+                <input type="email" name="email" class="flag-input" placeholder="Email" required>
+                <input type="password" name="password" class="flag-input" placeholder="Password" required>
+                <button type="submit" class="btn-solve">ACCESS</button>
+            </form>
+            <p style="margin-top: 20px;">No credentials? <a href="/register"
+                    style="color: var(--primary-color);">Register Team</a></p>
+        </div>
+    </main>
+</body>
+
+</html>

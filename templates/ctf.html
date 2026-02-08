@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hackerz - CTF Challenges</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <header>
+        <div class="glitch" data-text="CTF ARENA">CTF ARENA</div>
+        <nav>
+            <a href="/">HOME</a>
+            <a href="/ctf" style="background: var(--primary-color); color: #000;">CTF</a>
+            <a href="/leaderboard">LEADERBOARD</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h2>Active Challenges</h2>
+            <p>Select a challenge to begin. Decrypt the secrets.</p>
+        </section>
+
+        <div class="challenges-grid">
+            {% for challenge in challenges %}
+            <div class="challenge-card">
+                <div class="challenge-stats">
+                    <span class="difficulty {{ challenge.difficulty.lower() }}">{{ challenge.difficulty }}</span>
+                    <span>{{ challenge.points }} pts</span>
+                </div>
+                <h3>{{ challenge.category }}</h3>
+                <h4>{{ challenge.title }}</h4>
+                <p>{{ challenge.description | safe }}</p>
+                {% if challenge.file_url %}
+                <a href="{{ url_for('download_file', filename=challenge.file_url) }}" class="btn-solve"
+                    data-id="{{ challenge.id }}" download>DOWNLOAD SOURCE & SOLVE</a>
+                {% else %}
+                <a href="#" class="btn-solve" data-id="{{ challenge.id }}">SOLVE CHALLENGE</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Leaderboard moved to separate page -->
+    </main>
+
+    <div id="modal"></div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>

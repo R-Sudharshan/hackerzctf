@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hackerz - Leaderboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <header>
+        <div class="glitch" data-text="CTF ARENA">CTF ARENA</div>
+        <nav>
+            <a href="/">HOME</a>
+            <a href="/ctf">CTF</a>
+            <a href="/leaderboard" style="background: var(--primary-color); color: #000;">LEADERBOARD</a>
+            <a href="/logout">LOGOUT</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="leaderboard-section" style="margin-top: 50px;">
+            <h2 class="glitch" data-text="TOP HACKERS">TOP HACKERS</h2>
+            <div class="leaderboard-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in leaderboard %}
+                        <tr>
+                            <td>#{{ loop.index }}</td>
+                            <td>{{ team.name }}</td>
+                            <td>{{ team.score }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal"></div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
