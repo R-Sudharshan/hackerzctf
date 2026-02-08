@@ -3,7 +3,9 @@
 set -o errexit
 
 # Define the persistent cache directory for Prisma binaries
-export PRISMA_PY_BINARY_CACHE_DIR="$(pwd)/.prisma_engines"
+export PROJECT_ROOT=$(pwd)
+export PRISMA_BINARY_CACHE_DIR="$PROJECT_ROOT/.prisma_engines"
+export PRISMA_PY_BINARY_CACHE_DIR="$PRISMA_BINARY_CACHE_DIR"
 
 # Install dependencies
 pip install -r requirements.txt

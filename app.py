@@ -8,12 +8,27 @@ import traceback
 
 # Robust Prisma binary configuration for Render
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-# Ensure the app root is in sys.path for importing generated_prisma
 sys.path.append(PROJECT_ROOT)
 
-# Point to a persistent directory for binaries
+# Point to the persistent directory for binaries
 PRISMA_CACHE = os.path.join(PROJECT_ROOT, '.prisma_engines')
+# Use both just in case, though PRISMA_BINARY_CACHE_DIR is standard for runtime
+os.environ['PRISMA_BINARY_CACHE_DIR'] = PRISMA_CACHE
 os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = PRISMA_CACHE
+
+# Explicitly find and set the query engine binary path
+# This overrides the default search logic and is the most reliable way on Render
+try:
+    if os.path.exists(PRISMA_CACHE):
+        for root, dirs, files in os.walk(PRISMA_CACHE):
+            for file in files:
+                if 'query-engine' in file:
+                    binary_path = os.path.join(root, file)
+                    os.environ['PRISMA_QUERY_ENGINE_BINARY'] = binary_path
+                    print(f"DEBUG: Found Prisma binary at {binary_path}")
+                    break
+except Exception as e:
+    print(f"DEBUG: Error discovering Prisma binary: {e}")
 
 from generated_prisma import Prisma
 from asgiref.sync import async_to_sync
