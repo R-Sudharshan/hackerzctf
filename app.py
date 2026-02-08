@@ -7,9 +7,22 @@ import asyncio
 
 from generated_prisma import Prisma
 from asgiref.sync import async_to_sync
+import traceback
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
+
+@app.errorhandler(500)
+def handle_500(e):
+    print("CRITICAL: Internal Server Error")
+    print(traceback.format_exc())
+    return "Internal Server Error", 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"ERROR: {str(e)}")
+    print(traceback.format_exc())
+    return "Internal Server Error", 500
 
 # Prisma Client Initialization
 prisma = Prisma()
