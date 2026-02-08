@@ -86,11 +86,7 @@ def init_db():
             print("DEBUG: Database seeded successfully.")
 
 # Run DB Init
-try:
-    init_db()
-except Exception as e:
-    print(f"ERROR: Database initialization failed: {e}")
-    # We continue so the app can start and hopefully be repaired via /reset-db
+init_db()
 
 @app.route('/')
 def index():
@@ -147,16 +143,6 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-# TEMPORARY: Route to fix database schema on Vercel
-@app.route('/reset-db')
-def reset_db_route():
-    try:
-        db.drop_all()
-        db.create_all()
-        return "Database reset successful! Your tables have been recreated with the correct sizes. Go to / and it will seed automatically."
-    except Exception as e:
-        return f"Error resetting database: {str(e)}"
 
 @app.route('/ctf')
 @login_required
