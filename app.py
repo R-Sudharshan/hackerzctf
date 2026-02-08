@@ -3,7 +3,6 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import sys
-import asyncio
 import traceback
 
 # Robust Prisma binary configuration for Render
@@ -31,7 +30,6 @@ except Exception as e:
     print(f"DEBUG: Error discovering Prisma binary: {e}")
 
 from generated_prisma import Prisma
-from asgiref.sync import async_to_sync
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
@@ -65,8 +63,8 @@ class User(UserMixin):
 def load_user(user_id):
     try:
         if not prisma.is_connected():
-            async_to_sync(prisma.connect)()
-        team = async_to_sync(prisma.team.find_unique)(where={'id': int(user_id)})
+            prisma.connect()
+        team = prisma.team.find_unique(where={'id': int(user_id)})
         return User(team) if team else None
     except Exception as e:
         print(f"ERROR in load_user: {e}")
@@ -75,11 +73,11 @@ def load_user(user_id):
 # Initialize Database
 def init_db():
     if not prisma.is_connected():
-        async_to_sync(prisma.connect)()
+        prisma.connect()
         
     try:
         # Check if challenges exist, if not, create them
-        count = async_to_sync(prisma.challenge.count)()
+        count = prisma.challenge.count()
         if count == 0:
             print("DEBUG: Seeding database with challenges...")
             challenges = [
@@ -94,11 +92,11 @@ def init_db():
                  "description": "Some information prefers curiosity over attention. Find what’s quietly waiting to be discovered.", "file_url": "stego_challenge.jpg", "flag": "flag{Simply_Scan_Me}"}
             ]
             for c in challenges:
-                async_to_sync(prisma.challenge.create)(data=c)
+                prisma.challenge.create(data=c)
             
-            if not async_to_sync(prisma.team.find_unique)(where={"name": "AdminTeam"}):
+            if not prisma.team.find_unique(where={"name": "AdminTeam"}):
                  password_hash = generate_password_hash("admin123")
-                 async_to_sync(prisma.team.create)(data={
+                 prisma.team.create(data={
                      "name": "AdminTeam",
                      "email": "admin@hackerz.com",
                      "score": 100,
@@ -108,11 +106,10 @@ def init_db():
     except Exception as e:
         print(f"DEBUG: Seeding skipped or failed: {e}")
 
-# Middleware to ensure Prisma is connected
 @app.before_request
 def ensure_prisma_connected():
     if not prisma.is_connected():
-        async_to_sync(prisma.connect)()
+        prisma.connect()
 
 @app.route('/Hackerz_Logo.png')
 def serve_logo():
@@ -135,7 +132,7 @@ def login():
             flash('Missing email or password')
             return redirect(url_for('login'))
             
-        team = async_to_sync(prisma.team.find_unique)(where={'email': email})
+        team = prisma.team.find_unique(where={'email': email})
         
         if team and check_password_hash(team.password_hash, password):
             login_user(User(team))
@@ -159,17 +156,17 @@ def register():
             flash('All fields are required')
             return redirect(url_for('register'))
         
-        if async_to_sync(prisma.team.find_unique)(where={'email': email}):
+        if prisma.team.find_unique(where={'email': email}):
             flash('Email already registered')
             return redirect(url_for('register'))
         
-        if async_to_sync(prisma.team.find_unique)(where={'name': team_name}):
+        if prisma.team.find_unique(where={'name': team_name}):
             flash('Team name already taken')
             return redirect(url_for('register'))
             
         password_hash = generate_password_hash(password)
         try:
-            new_team = async_to_sync(prisma.team.create)(data={
+            new_team = prisma.team.create(data={
                 "name": team_name,
                 "email": email,
                 "password_hash": password_hash
@@ -194,15 +191,15 @@ def logout():
 @login_required
 def ctf():
     init_db() # Ensure DB is seeded if first run
-    challenges = async_to_sync(prisma.challenge.find_many)()
-    solves = async_to_sync(prisma.solve.find_many)(where={'team_id': int(current_user.id)})
+    challenges = prisma.challenge.find_many()
+    solves = prisma.solve.find_many(where={'team_id': int(current_user.id)})
     solved_ids = [s.challenge_id for s in solves]
     return render_template('ctf.html', challenges=challenges, solved_ids=solved_ids)
 
 @app.route('/leaderboard')
 @login_required
 def leaderboard():
-    teams = async_to_sync(prisma.team.find_many)(order={'score': 'desc'}, take=10)
+    teams = prisma.team.find_many(order={'score': 'desc'}, take=10)
     return render_template('leaderboard.html', leaderboard=teams)
 
 @app.route('/api/solve', methods=['POST'])
@@ -215,12 +212,12 @@ def solve_challenge():
     if not all([flag_input, challenge_id]):
         return jsonify({'success': False, 'message': 'Missing data'})
 
-    challenge = async_to_sync(prisma.challenge.find_unique)(where={'id': int(challenge_id)})
+    challenge = prisma.challenge.find_unique(where={'id': int(challenge_id)})
     if not challenge:
         return jsonify({'success': False, 'message': 'Challenge not found'})
 
     if flag_input.strip() == challenge.flag:
-        solved = async_to_sync(prisma.solve.find_unique)(where={
+        solved = prisma.solve.find_unique(where={
             'team_id_challenge_id': {
                 'team_id': int(current_user.id),
                 'challenge_id': challenge.id
@@ -232,17 +229,17 @@ def solve_challenge():
         
         try:
             # Simple sequential updates instead of complex transaction for stability
-            async_to_sync(prisma.team.update)(
+            prisma.team.update(
                 where={'id': int(current_user.id)},
                 data={'score': {'increment': challenge.points}}
             )
-            async_to_sync(prisma.solve.create)(data={
+            prisma.solve.create(data={
                 'team_id': int(current_user.id),
                 'challenge_id': challenge.id
             })
             
             # Refresh current user
-            updated_team = async_to_sync(prisma.team.find_unique)(where={'id': int(current_user.id)})
+            updated_team = prisma.team.find_unique(where={'id': int(current_user.id)})
             current_user.team = updated_team
             return jsonify({'success': True, 'message': 'Correct! Flag Accepted.', 'score': updated_team.score})
         except Exception as e:
