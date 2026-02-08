@@ -5,3 +5,6 @@ hackerz.db
 .env
 .vercel/
 *.log
+generated_prisma/
+.prisma_engines/
+prisma-query-engine-*

@@ -6,11 +6,14 @@ import sys
 import asyncio
 import traceback
 
+# Robust Prisma binary configuration for Render
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 # Ensure the app root is in sys.path for importing generated_prisma
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+sys.path.append(PROJECT_ROOT)
 
-# Prisma binary configuration for Render (must match build command)
-os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), '.prisma_engines')
+# Point to a persistent directory for binaries
+PRISMA_CACHE = os.path.join(PROJECT_ROOT, '.prisma_engines')
+os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = PRISMA_CACHE
 
 from generated_prisma import Prisma
 from asgiref.sync import async_to_sync
