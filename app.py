@@ -4,10 +4,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import sys
 import asyncio
+import traceback
+
+# Ensure the app root is in sys.path for importing generated_prisma
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+# Prisma binary configuration for Render
+os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), 'prisma_binaries')
 
 from generated_prisma import Prisma
 from asgiref.sync import async_to_sync
-import traceback
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
@@ -54,7 +60,9 @@ def init_db():
         async_to_sync(prisma.connect)()
         
     try:
-        if not async_to_sync(prisma.challenge.find_first)():
+        # Check if challenges exist, if not, create them
+        count = async_to_sync(prisma.challenge.count)()
+        if count == 0:
             print("DEBUG: Seeding database with challenges...")
             challenges = [
                 {"title": "The Source", "category": "Reverse Engineering", "difficulty": "Easy", "points": 100, 
@@ -80,13 +88,17 @@ def init_db():
                  })
             print("DEBUG: Database seeded successfully.")
     except Exception as e:
-        print(f"DEBUG: Seeding skipped or failed (might already exist): {e}")
+        print(f"DEBUG: Seeding skipped or failed: {e}")
 
 # Middleware to ensure Prisma is connected
 @app.before_request
 def ensure_prisma_connected():
     if not prisma.is_connected():
         async_to_sync(prisma.connect)()
+
+@app.route('/Hackerz_Logo.png')
+def serve_logo():
+    return send_from_directory('static', 'Hackerz_Logo.png')
 
 @app.route('/')
 def index():
