@@ -11,7 +11,7 @@ os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), '.prisma_bi
 # Ensure local path is in sys.path for Vercel environment
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from prisma import Prisma
+from generated_prisma import Prisma
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
