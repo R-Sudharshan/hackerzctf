@@ -5,12 +5,6 @@ import os
 import sys
 import asyncio
 
-# CRITICAL for Vercel: Redirect Prisma binaries to a local folder for bundling
-os.environ['PRISMA_PY_BINARY_CACHE_DIR'] = os.path.join(os.getcwd(), '.prisma_engines')
-
-# Ensure local path is in sys.path for Vercel environment
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from generated_prisma import Prisma
 from asgiref.sync import async_to_sync
 
