@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Team {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  email         String   @unique
+  password_hash String
+  score         Int      @default(0)
+  solves        Solve[]
+}
+
+model Challenge {
+  id          Int      @id @default(autoincrement())
+  title       String
+  category    String
+  difficulty  String
+  points      Int
+  description String
+  file_url    String?
+  flag        String
+  solves      Solve[]
+}
+
+model Solve {
+  id           Int       @id @default(autoincrement())
+  team         Team      @relation(fields: [team_id], references: [id])
+  team_id      Int
+  challenge    Challenge @relation(fields: [challenge_id], references: [id])
+  challenge_id Int
+
+  @@unique([team_id, challenge_id])
+}
