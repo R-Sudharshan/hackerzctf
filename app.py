@@ -86,7 +86,11 @@ def init_db():
             print("DEBUG: Database seeded successfully.")
 
 # Run DB Init
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"ERROR: Database initialization failed: {e}")
+    # We continue so the app can start and hopefully be repaired via /reset-db
 
 @app.route('/')
 def index():
